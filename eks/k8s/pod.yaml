@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: athena-connectivity-test
+  namespace: default   # must match k8s_namespace in terraform.tfvars
+  labels:
+    app: athena-connectivity-test
+spec:
+  serviceAccountName: athena-query-runner   # IRSA binding -> athena_eks_query_role
+  restartPolicy: Never                       # run once; pod ends in Completed/Succeeded
+  # If your target nodes are tainted (e.g. a dedicated Karpenter NodePool), add a
+  # matching toleration here.
+  containers:
+    - name: athena-query
+      # Image built from eks/Dockerfile and pushed to your registry, e.g.
+      # <account>.dkr.ecr.<region>.amazonaws.com/athena-query-test:latest
+      image: <ECR_IMAGE_URI>
+      imagePullPolicy: Always   # mutable tag -> always re-pull so a rebuilt image is used
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+      env:
+        - name: AWS_REGION
+          value: us-east-1                    # your region
+        - name: ATHENA_DATABASE
+          value: test_sandbox_athena_db       # must match athena_db_name
+        - name: ATHENA_CATALOG
+          value: testSandboxCatalog           # must match athena_data_catalog_name
+        - name: ATHENA_WORKGROUP
+          value: testSandboxAthenaWorkgroup   # must match athena_workgroup_name
+        - name: ATHENA_QUERY
+          value: SHOW TABLES IN test_sandbox_athena_db
